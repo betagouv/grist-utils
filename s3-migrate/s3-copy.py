@@ -7,6 +7,7 @@ import hashlib
 import sys
 import subprocess
 import shlex
+from dateutil import parser
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -172,6 +173,45 @@ class Bucket:
         else:
             logging.info("La suppression du fichier %s a échoué" % file)
 
+    def deleteSpecificVersion(self, file, src):
+        logging.info("Supprime les versions qui ne sont pas dans le %s" % file)
+        for attempt in range(10):
+            try:
+                objects = []
+                listVersion = self.getVersionsOfDoc(file)
+                with open(src.tmpMapFile, "r") as file1:
+                    data1 = json.load(file1)
+                listId = {item["snapshotId"] for item in data1}
+                for v in listVersion:
+                    if v["VersionId"] not in listId:
+                        objects.append({"VersionId": v["VersionId"], "Key": v["Key"]})
+                if objects:
+                    self.client.delete_objects(
+                        Bucket=self.bucket, Delete={"Objects": objects}
+                    )
+                    logging.info("On vient de nettoyer des versions orphelines")
+                else:
+                    logging.info("Il n'y a rien à nettoyer")
+            except Exception as e:
+                logging.error(e)
+            else:
+                break
+        else:
+            logging.info("La suppression du fichier %s a échoué" % file)
+
+
+def fixSnapshotId(src, dst):
+    with open(src.tmpMapFile, "r") as file1, open(dst.tmpMapFile, "r") as file2:
+        data1 = json.load(file1)
+        data2 = json.load(file2)
+    data2_dict = {item["lastModified"]: item["snapshotId"] for item in data2}
+
+    for item in data1:
+        if item["lastModified"] in data2_dict:
+            item["snapshotId"] = data2_dict[item["lastModified"]]
+    with open(src.tmpMapFile, "w") as output_file:
+        json.dump(data1, output_file, indent=4)
+
 
 src = Bucket(
     os.environ.get("SRC_ENDPOINT_URL", "http://localhost:9000"),
@@ -212,17 +252,26 @@ for file in src.getDocumentsList():
                         "Nouvelle version détecté pour %s, suppression sur la cible"
                         % file
                     )
-                    dst.deleteFile(file)
-                    dst.deleteFile(srcMeta["uri"])
             if srcMeta is None and dstMeta:
                 updateMeta = False
                 dst.deleteFile(file)
                 dst.deleteFile(dstMeta["uri"])
             if changeDetected:
-                logging.info("Upload du fichier avec ces versions sur le bucket cible")
                 versions = src.getVersionsOfDoc(file)
-                for index, version in enumerate(versions):
-                    dst.copyVersion(src, file, version["VersionId"], updateMeta)
-                if srcMeta:
-                    logging.info("Upload du fichier meta")
-                    dst.uploadMeta(src, srcMeta["uri"])
+                if dstMeta:
+                    for index, version in enumerate(versions):
+                        if version["LastModified"] > parser.isoparse(
+                            dstMeta["lastModified"]
+                        ):
+                            print("Copie nouvelles versions")
+                            dst.copyVersion(src, file, version["VersionId"], updateMeta)
+                else:
+                    logging.info("Upload initial")
+                    for index, version in enumerate(versions):
+                        print("Upload %s" % file)
+                        dst.copyVersion(src, file, version["VersionId"], updateMeta)
+            # Supprime les versions en trop sur la destination
+            logging.info("Upload du fichier meta")
+            fixSnapshotId(src, dst)
+            dst.deleteSpecificVersion(file, src)
+            dst.uploadMeta(src, srcMeta["uri"])
