@@ -87,6 +87,20 @@ describe("API", function () {
     return res.data;
   }
 
+  async function addColumn(docId, tableId, id, fields) {
+    const res = await axios.post(
+      url(`/api/docs/${docId}/tables/${tableId}/columns`),
+      {
+        columns: [{ id, fields }],
+      },
+      {
+        headers: headers(),
+      },
+    );
+    assert.equal(res.status, 200, "Failed to add column");
+    return res.data;
+  }
+
   async function readTableRecords(docId, tableId) {
     const res = await axios.get(
       url(`/api/docs/${docId}/tables/${tableId}/records`),
@@ -105,6 +119,35 @@ describe("API", function () {
     const records = await readTableRecords(docId, "Table1");
     assert.lengthOf(records, 1);
     assert.equal(records[0].fields.A, "value1");
+  });
+
+  it("should evaluate formulas in a sandbox", async () => {
+    const docId = await createDoc("doc-formulas-test");
+    await addColumn(docId, "Table1", "legit_formula", {
+      type: "Int",
+      label: "legit formula",
+      formula: "$A + $B",
+      isFormula: true,
+    });
+    await addColumn(docId, "Table1", "bad_formula", {
+      type: "Text",
+      label: "Bad formula",
+      formula: "import glob\nglob.glob('/etc/*')",
+      isFormula: true,
+    });
+    await addRecord(docId, "Table1", { fields: { A: 1, B: 2 } });
+    const records = await readTableRecords(docId, "Table1");
+    assert.lengthOf(records, 1);
+    assert.equal(
+      records[0].fields.legit_formula,
+      3,
+      "The legit formula should have been evaluated",
+    );
+    assert.equal(
+      records[0].fields.bad_formula,
+      "[]",
+      "The bad formula should not have access to system resources!",
+    );
   });
 
   // In a multitenant environment, the Grist instance should be configured with the correct APP_HOME_INTERNAL_URL
