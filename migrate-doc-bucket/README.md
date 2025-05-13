@@ -10,3 +10,7 @@ You may check the usages and the options through:
 ```bash
 $ ./migrate-doc-bucket.sh --help
 ```
+
+## Migrate the rights
+
+If you want to also apply the same rights for the document, you may take a look at the tools of `doc-rights-management`, especially `./retrieve-rights.sh` and `./apply-rights.sh`.
