@@ -12,8 +12,8 @@ filename_without_ext() {
 }
 
 declare source_doc="" dest_doc="" help=0 storage_id="" all_versions=0
-MC="mc"
-SQLITE="sqlite3"
+MINIO_CLI="${MINIO_CLI:-mc}"
+SQLITE="${SQLITE3:-sqlite3}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -26,7 +26,7 @@ while [ "$#" -gt 0 ]; do
     --storage_id=*) storage_id="${1#*=}"; shift 1;;
     --storage-id=*) storage_id="${1#*=}"; shift 1;;
     --all-versions) all_versions=1; shift 1;;
-    --dry-run) MC="echo mc"; SQLITE="echo sqlite3"; shift 1;;
+    --dry-run) MINIO_CLI="echo mc"; SQLITE="echo sqlite3"; shift 1;;
     --help) help=1; shift 1;;
 
     -*) echo "unknown option: $1" >&2; exit 1;;
@@ -62,7 +62,7 @@ declare -A versions_map
 
 # Delete the destination doc so there is no collision
 
-$MC mv "$dest_doc" "$dest_doc.bak" || true
+$MINIO_CLI mv "$dest_doc" "$dest_doc.bak" || true
 
 tmp_file=$(mktemp --suffix=".grist")
 
@@ -75,20 +75,20 @@ fi
 
 for version in $versions; do
   if [ -z "$storage_id" ]; then
-    $MC cp --version-id="$version" "$source_doc" "$dest_doc"
+    $MINIO_CLI cp --version-id="$version" "$source_doc" "$dest_doc"
   else
-    $MC get --version-id="$version" "$source_doc" "$tmp_file"
+    $MINIO_CLI get --version-id="$version" "$source_doc" "$tmp_file"
     $SQLITE "$tmp_file" <<EOF || true
 update _grist_DocInfo set documentSettings=json_replace(documentSettings, '$.attachmentStoreId', '$storage_id');
 update _gristsys_Files set "storageId"='$storage_id' where "storageId" is not null;
 EOF
-    $MC put "$tmp_file" "$dest_doc"
+    $MINIO_CLI put "$tmp_file" "$dest_doc"
   fi
   versions_map["$version"]="$(mc stat --json "$dest_doc" | jq -r '.versionID')"
 done
 
 if [ -n "$storage_id" ]; then
-  $MC cp --recursive "$(dirname "$source_doc")/attachments/$(filename_without_ext "$source_doc")/" "$(dirname "$dest_doc")/attachments/$(filename_without_ext "$dest_doc")"
+  $MINIO_CLI cp --recursive "$(dirname "$source_doc")/attachments/$(filename_without_ext "$source_doc")/" "$(dirname "$dest_doc")/attachments/$(filename_without_ext "$dest_doc")"
 fi
 
 # Download and transform the .version value of meta.json of the source doc
@@ -97,8 +97,8 @@ meta_json=$(mc cat "$(dirname "$source_doc")/assets/unversioned/$(filename_witho
 for version in "${!versions_map[@]}"; do
   meta_json=$(echo "$meta_json" | jq '.[] | select(.snapshotId=="'"$version"'").snapshotId="'"${versions_map["$version"]}"'" | [.]');
 done
-echo "$meta_json" | $MC pipe "$(dirname "$dest_doc")/assets/unversioned/$(filename_without_ext "$dest_doc")/meta.json"
+echo "$meta_json" | $MINIO_CLI pipe "$(dirname "$dest_doc")/assets/unversioned/$(filename_without_ext "$dest_doc")/meta.json"
 read -r -p "Purge the destination doc copy? [y/N]"  response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-  $MC rm --versions --force "$dest_doc.bak"
+  $MINIO_CLI rm --versions --force "$dest_doc.bak"
 fi
