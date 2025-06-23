@@ -322,17 +322,17 @@ describe("API", function () {
         expectedStatus: 400,
       },
       {
-        itMsg: "should reject for regular grist files",
-        docId: "doc-malicious-attachment",
+        itMsg: "should pass for regular grist files",
+        docId: "doc-regular-grist",
         attachmentFilePath: new URL(
           "../fixtures/grist/Hello.grist",
           import.meta.url,
         ),
-        expectedStatus: 400,
+        expectedStatus: 200,
       },
       {
         itMsg: "should reject for malicious grist files",
-        docId: "doc-malicious-attachment",
+        docId: "doc-malicious-grist",
         attachmentFilePath: new URL(
           "../fixtures/grist/malicious.grist",
           import.meta.url,
