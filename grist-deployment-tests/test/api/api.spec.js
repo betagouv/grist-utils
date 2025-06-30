@@ -1,5 +1,8 @@
+import fs from "node:fs/promises";
 import { setTimeout } from "node:timers/promises";
 import { URL } from "node:url";
+
+import { Blob } from "node:buffer";
 import axios from "axios";
 import { assert } from "chai";
 
@@ -110,6 +113,14 @@ describe("API", function () {
     );
     assert.equal(res.status, 200, "Failed to read table records");
     return res.data.records;
+  }
+
+  async function getWorkerInfoForDoc(docId) {
+    const res = await axios.get(url(`/api/worker/${docId}`), {
+      headers: headers(),
+    });
+    assert.equal(res.status, 200, "Failed to fetch doc info");
+    return res.data;
   }
 
   // This is the most basic test
@@ -288,5 +299,80 @@ describe("API", function () {
       "Number of records after restore is greater than expected",
     );
     assert.deepEqual(recordsAfterRestore[0].fields, expectedFields);
+  });
+
+  describe("Antivirus", () => {
+    for (const ctx of [
+      {
+        itMsg: "should pass for regular attachments",
+        docId: "doc-regular-attachment",
+        attachmentFilePath: new URL(
+          "../fixtures/attachments/regular.pdf",
+          import.meta.url,
+        ),
+        expectedStatus: 200,
+      },
+      {
+        itMsg: "should reject for malicious pdf",
+        docId: "doc-malicious-attachment",
+        attachmentFilePath: new URL(
+          "../fixtures/attachments/malicious.pdf",
+          import.meta.url,
+        ),
+        expectedStatus: 400,
+      },
+      {
+        itMsg: "should pass for regular grist files",
+        docId: "doc-regular-grist",
+        attachmentFilePath: new URL(
+          "../fixtures/grist/Hello.grist",
+          import.meta.url,
+        ),
+        expectedStatus: 200,
+      },
+      {
+        itMsg: "should reject for malicious grist files",
+        docId: "doc-malicious-grist",
+        attachmentFilePath: new URL(
+          "../fixtures/grist/malicious.grist",
+          import.meta.url,
+        ),
+        expectedStatus: 400,
+      },
+    ]) {
+      it(ctx.itMsg, async () => {
+        const docId = await createDoc(ctx.docId);
+        await addColumn(docId, "Table1", "attachment", {
+          type: "Attachments",
+          label: "attachment",
+        });
+        const workerInfo = await getWorkerInfoForDoc(docId);
+        const formData = new FormData();
+        formData.append(
+          "upload",
+          new Blob([(await fs.readFile(ctx.attachmentFilePath)).buffer]),
+          "file.pdf",
+        );
+        const urls = [
+          new URL("uploads", workerInfo.docWorkerUrl),
+          new URL("o/docs/uploads", workerInfo.docWorkerUrl),
+          url(`/o/docs/api/docs/${docId}/attachments`),
+          url(`/api/docs/${docId}/attachments`),
+        ];
+
+        for (const url of urls) {
+          console.log(`Uploading using ${url}`);
+          const res = await axios
+            .post(url, formData, {
+              headers: {
+                ...headers(),
+                "Content-Type": "multipart/form-data",
+              },
+            })
+            .catch((err) => err.response || err);
+          assert.equal(res.status, ctx.expectedStatus);
+        }
+      });
+    }
   });
 });
