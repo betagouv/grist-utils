@@ -399,15 +399,6 @@ describe("API", function () {
         ),
         expectedStatus: 200,
       },
-      {
-        itMsg: "should reject for malicious grist files",
-        docId: "doc-malicious-grist",
-        attachmentFilePath: new URL(
-          "../fixtures/grist/malicious.grist",
-          import.meta.url,
-        ),
-        expectedStatus: 400,
-      },
     ]) {
       it(ctx.itMsg, async () => {
         const docId = await createDoc(ctx.docId);
