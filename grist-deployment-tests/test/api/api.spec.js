@@ -3,6 +3,7 @@ import { setTimeout } from "node:timers/promises";
 import { URL } from "node:url";
 
 import { Blob } from "node:buffer";
+import path from "node:path";
 import axios from "axios";
 import { assert } from "chai";
 
@@ -410,8 +411,8 @@ describe("API", function () {
         const formData = new FormData();
         formData.append(
           "upload",
-          new Blob([(await fs.readFile(ctx.attachmentFilePath)).buffer]),
-          "file.pdf",
+          new Blob([await fs.readFile(ctx.attachmentFilePath)]),
+          path.basename(ctx.attachmentFilePath.pathname),
         );
         const urls = [
           new URL("uploads", workerInfo.docWorkerUrl),
