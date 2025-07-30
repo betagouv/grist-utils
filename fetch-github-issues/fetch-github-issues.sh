@@ -190,9 +190,13 @@ fi
 
 if [ "$show_in_progress" = 'true' ]; then
   in_progress=$(get_column_items "In Progress")
-  if [ -n "$in_progress" ]; then
+  in_internal_review=$(get_column_items "Needs Internal Feedback")
+  if [ -n "$in_progress" ] || [ -n "$in_internal_review" ]; then
     echo "**In Progress 🚧**"
     echo ""
+    for item in $in_internal_review; do
+      format_project_item "$item"
+    done
     for item in $in_progress; do
       format_project_item "$item"
     done
