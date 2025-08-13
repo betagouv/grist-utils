@@ -7,6 +7,12 @@ OWNER_NAME=gristlabs
 
 output=$(mktemp --suffix=".issues-gh.json")
 
+new_line() {
+  echo ""
+  echo "<br>"
+  echo ""
+}
+
 get_column_items() {
   jq -c ".items[] | select(.status == \"$1\")" < "$output"
 }
@@ -141,34 +147,32 @@ if [ "$show_needs_feedback" = 'true' ]; then
   needs_feedback_p2=$(get_needs_feedback_column_by_priority "P2" && echo && get_needs_feedback_column_without_priority)
   if [ -n "$needs_feedback_p0" ]; then
     echo "**🔝 HIGH PRIORITY: Needs Review or feedback**"
-    echo ""
+    new_line
     for item in $needs_feedback_p0; do
       format_project_item "$item"
     done
-    echo ""
+    new_line
     echo "Other news in the thread below 🧵⤵️"
-    echo ""
+    new_line
     echo "---"
   fi
 
   if [ -n "$needs_feedback_p1" ]; then
     echo "**🙏 Medium priority: Needs Review or feedback**"
-    echo ""
+    new_line
     for item in $needs_feedback_p1; do
       format_project_item "$item"
     done
-    echo ""
-    echo ""
+    new_line
   fi
 
   if [ -n "$needs_feedback_p2" ]; then
     echo "**Low priority: Needs Review or feedback**"
-    echo ""
+    new_line
     for item in $needs_feedback_p2; do
       format_project_item "$item"
     done
-    echo ""
-    echo ""
+    new_line
   fi
 fi
 
@@ -177,14 +181,13 @@ if [ "$show_done" = 'true' ]; then
   if [ -n "$done" ]; then
     echo "**Newly merged 🎉**"
     echo "thanks for your reviews! 🙏"
-    echo ""
+    new_line
     for item in $done; do
       formatted_item=$(format_project_item "$item")
       printf "%s: ... 👥 For our users, it means: ..." "$formatted_item" # printf removes the last newline from $formatted_item
       echo ""
     done
-    echo ""
-    echo ""
+    new_line
   fi
 fi
 
@@ -193,15 +196,14 @@ if [ "$show_in_progress" = 'true' ]; then
   in_internal_review=$(get_column_items "Needs Internal Feedback")
   if [ -n "$in_progress" ] || [ -n "$in_internal_review" ]; then
     echo "**In Progress 🚧**"
-    echo ""
+    new_line
     for item in $in_internal_review; do
       format_project_item "$item"
     done
     for item in $in_progress; do
       format_project_item "$item"
     done
-    echo ""
-    echo ""
+    new_line
   fi
 fi
 
