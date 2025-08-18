@@ -51,6 +51,10 @@ describe("API", function () {
       },
     );
     assert.equal(wsCreationRes.status, 200, "Failed to create workspace");
+    const { data: scimUser } = await axios.get(url("/api/scim/v2/Me"), {
+      headers: headers(),
+    });
+    console.log("Connected as ", scimUser.userName);
     workspaceId = wsCreationRes.data;
   });
 
