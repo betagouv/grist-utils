@@ -26,9 +26,11 @@ on:
     - cron: 0 8 * * *
 
 jobs:
-  run-integration-tests:
+  run-integration-tests-api:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'tests latest' }}
+    concurrency:
+      group: api-test-${{ github.ref }}-${{ inputs.environment }}
 
     steps:
     - name: Checkout repository
@@ -53,6 +55,26 @@ jobs:
       run: |
         cd grist-deployment-tests
         npm run test:api
+
+  run-integration-tests-e2e:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'tests latest' }}
+    concurrency:
+      group: e2e-test-${{ github.ref }}-${{ inputs.environment }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Install dependencies
+      run: |
+        cd grist-deployment-tests
+        npm install
 
     - name: Run the e2e tests
       shell: bash
