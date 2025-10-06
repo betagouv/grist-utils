@@ -20,6 +20,7 @@ on:
         options:
           - tests preprod
           - tests latest
+          - opi tests latest
         default: tests latest
   schedule:
     - cron: 0 8 * * *
