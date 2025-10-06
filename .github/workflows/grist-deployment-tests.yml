@@ -20,7 +20,8 @@ on:
         options:
           - tests preprod
           - tests latest
-        default: tests latest
+          - tests bacasable OPI
+        default: tests preprod
   schedule:
     - cron: 0 8 * * *
 
