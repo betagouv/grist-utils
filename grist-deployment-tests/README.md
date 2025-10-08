@@ -38,6 +38,8 @@ Where the above env variables are:
 
 - `GRIST_DOMAIN` is the domain of your grist instance (required);
 - `USER_API_KEY` is the API Key of a user with whom you want to run the tests (required, for API tests);
+- `USER_LOGIN` is the email of said user (required for e2e tests)
+- `USER_PASSWORD` is the password of said user (required for e2e tests)
 - `ORG_ID` is the ID of the organization on which you want to run the tests
 (optional, defaults to the Personal organization id, for API tests);
 
