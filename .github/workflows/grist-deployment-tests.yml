@@ -25,6 +25,9 @@ on:
   schedule:
     - cron: 0 8 * * *
 
+permissions:
+  contents: read
+
 jobs:
   run-integration-tests-api:
     runs-on: ubuntu-latest
