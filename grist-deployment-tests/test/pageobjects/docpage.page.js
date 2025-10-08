@@ -22,7 +22,9 @@ class DocPage extends Page {
 
   async publishForm() {
     await this.publishFormButton.click();
-    await this.confirmModal.click();
+    if (await this.confirmModal.isExisting()) {
+      await this.confirmModal.click();
+    }
     await this.shareFormButton.click();
     return await this.sharedUrlFormInput.getValue();
   }
