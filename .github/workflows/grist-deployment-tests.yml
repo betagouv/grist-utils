@@ -21,6 +21,7 @@ on:
           - tests preprod
           - tests latest
           - opi tests latest
+          - opi tests preprod
         default: tests latest
   schedule:
     - cron: 0 8 * * *
