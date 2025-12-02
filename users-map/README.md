@@ -10,6 +10,7 @@ Given a CSV file containing a dump of all our users which contains the SIRET of 
 Dependencies:
  - curl (on Debian-based distributions: `apt install curl`)
  - csvtool (on Debian-based distributions: `apt install csvtool`)
+ - the list of the French organizations identified with their SIRET and geolocation: https://files.data.gouv.fr/geo-sirene/last/
 
 ## Usage
 
