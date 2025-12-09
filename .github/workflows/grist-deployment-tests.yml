@@ -18,9 +18,6 @@ on:
         description: Environment to run the tests on
         type: choice
         options:
-          - tests preprod
-          - tests latest
-          - opi tests latest
           - opi tests preprod
         default: tests latest
   schedule:
