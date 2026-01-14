@@ -19,7 +19,7 @@ on:
         type: choice
         options:
           - opi tests preprod
-        default: tests latest
+        default: opi tests preprod
   schedule:
     - cron: 0 8 * * *
 
@@ -29,7 +29,7 @@ permissions:
 jobs:
   run-integration-tests-api:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment || 'tests latest' }}
+    environment: ${{ inputs.environment }}
     concurrency:
       group: api-test-${{ github.ref }}-${{ inputs.environment }}
 
@@ -59,7 +59,7 @@ jobs:
 
   run-integration-tests-e2e:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment || 'tests latest' }}
+    environment: ${{ inputs.environment }}
     concurrency:
       group: e2e-test-${{ github.ref }}-${{ inputs.environment }}
 
