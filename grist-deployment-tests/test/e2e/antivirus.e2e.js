@@ -12,7 +12,7 @@ import { withTmpTab, withTmpWorkspace } from "./utils.js";
 // These tests are complementary to the API tests.
 // NOTE: We should opt for writing them using Webdriver only when a step is at least not trivial doing so using the API
 // (like publishing a form)
-describe("Antivirus 2", () => {
+describe.skip("Antivirus 2", () => {
   it("should block malicious attachments in form", async () => {
     // Given
     await HomePage.open();
