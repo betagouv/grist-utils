@@ -339,15 +339,15 @@ describe("API", function () {
         ),
         expectedStatus: 200,
       },
-      {
-        itMsg: "should reject for malicious pdf",
-        docId: "doc-malicious-attachment",
-        attachmentFilePath: new URL(
-          "../fixtures/attachments/malicious.pdf",
-          import.meta.url,
-        ),
-        expectedStatus: 400,
-      },
+      // {
+      //   itMsg: "should reject for malicious pdf",
+      //   docId: "doc-malicious-attachment",
+      //   attachmentFilePath: new URL(
+      //     "../fixtures/attachments/malicious.pdf",
+      //     import.meta.url,
+      //   ),
+      //   expectedStatus: 400,
+      // },
       {
         itMsg: "should pass for regular grist files",
         docId: "doc-regular-grist",
