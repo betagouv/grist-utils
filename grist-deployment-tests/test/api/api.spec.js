@@ -329,6 +329,12 @@ describe("API", function () {
   });
 
   describe("Antivirus", () => {
+    function generate_random_data(size) {
+      return new Blob([new ArrayBuffer(size)], {
+        type: "application/octet-stream",
+      });
+    }
+
     for (const ctx of [
       {
         itMsg: "should pass for regular attachments",
@@ -392,5 +398,31 @@ describe("API", function () {
         }
       });
     }
+    it("accepts multiple attachments", async () => {
+      const docId = await createDoc("multi-attachments");
+      await addColumn(docId, "Table1", "attachment", {
+        type: "Attachments",
+        label: "attachment",
+      });
+      const formData = new FormData();
+      formData.append(
+        "upload",
+        new Blob([
+          generate_random_data(1 * 1024 ** 2),
+          generate_random_data(1 * 1024 ** 2),
+          generate_random_data(1 * 1024 ** 2),
+        ]),
+      );
+
+      const res = await axios
+        .post(url(`/api/docs/${docId}/attachments`), formData, {
+          headers: {
+            ...headers(),
+            "Content-Type": "multipart/form-data",
+          },
+        })
+        .catch((err) => err.response || err);
+      assert.equal(res.status, 200);
+    });
   });
 });
