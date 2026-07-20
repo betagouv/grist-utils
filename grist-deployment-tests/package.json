@@ -17,7 +17,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@wdio/cli": "^9.27.2",
-    "axios": "^1.17.0",
+    "axios": "^1.18.0",
     "chai": "^6.2.2",
     "mocha": "^11.7.6"
   },
