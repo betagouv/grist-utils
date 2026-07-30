@@ -51,6 +51,15 @@ import time
 import psycopg2
 import psycopg2.extras
 
+try:
+    from pygments import highlight
+    from pygments.lexers import SqlLexer
+    from pygments.formatters import Terminal256Formatter
+except Exception():
+    highlight = None
+    pass
+
+
 logger = logging.getLogger("grist_access")
 
 # Roles that can be assigned directly. 'guests' is excluded: it is managed
@@ -80,7 +89,17 @@ class SqlLoggingConnection(psycopg2.extras.MinTimeLoggingConnection):
             msg = msg.decode("utf-8", "replace")
         # curs.timestamp is set by MinTimeLoggingCursor before execution.
         elapsed_ms = (time.time() - curs.timestamp) * 1000
-        return "SQL [%.1f ms, rowcount=%s] %s" % (elapsed_ms, curs.rowcount, msg)
+        return "SQL [%.1f ms, rowcount=%s] %s" % (elapsed_ms, curs.rowcount, self.format_msg(msg))
+
+    def format_msg(self, msg):
+        return msg
+
+class SynHighlighSqlLoggingConnection(SqlLoggingConnection):
+    style = "default"
+    def format_msg(self, msg):
+        if not highlight:
+            super().format_msg(msg)
+        return highlight(msg, lexer=SqlLexer(), formatter=Terminal256Formatter(style=self.style))
 
 
 def setup_logging(verbose, log_file):
@@ -416,6 +435,8 @@ def main():
                         help="Log every executed SQL query to stderr")
     parser.add_argument("--log-file",
                         help="Log every executed SQL query to this file")
+    parser.add_argument("--syntax-highlighting", action="store", const="default", nargs="?",
+                        help="Highlight the syntax for SQL queries (requires --verbose)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_list = sub.add_parser("list", help="List the access rights of a resource")
@@ -442,7 +463,11 @@ def main():
     setup_logging(args.verbose, args.log_file)
 
     logger.debug("Connecting to the database (dsn=%s)", args.dsn or "<PG* environment variables>")
-    conn = psycopg2.connect(args.dsn, connection_factory=SqlLoggingConnection)
+    connection_factory = SqlLoggingConnection
+    if highlight and args.verbose and args.syntax_highlighting:
+        connection_factory = SynHighlighSqlLoggingConnection
+        connection_factory.style = args.syntax_highlighting
+    conn = psycopg2.connect(args.dsn, connection_factory=connection_factory)
     conn.initialize(logger)
     try:
         with conn.cursor() as cur:
