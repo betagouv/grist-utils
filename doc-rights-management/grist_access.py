@@ -212,10 +212,8 @@ def _set_group_users(cur, group_id, target_user_ids):
     to_add = target_user_ids - current
     to_remove = current - target_user_ids
     if to_remove:
-        # FIXME: Prefer using the IN operator, which takes advantage of the indexes (especially imporant with the big table group_users)
-        # Needs some adaptations because any accepts an array whereas IN needs a Set
-        cur.execute("DELETE FROM group_users WHERE group_id = %s AND user_id = ANY(%s)",
-                    (group_id, list(to_remove)))
+        cur.execute("DELETE FROM group_users WHERE group_id = %s AND user_id in %s",
+                    (group_id, tuple(to_remove)))
     if to_add:
         psycopg2.extras.execute_values(
             cur, "INSERT INTO group_users (group_id, user_id) VALUES %s",
@@ -325,11 +323,12 @@ def cmd_set(cur, args):
     # role per resource), then add them to the target group.
     other_group_ids = [gid for role, gid in groups.items()
                        if role != args.role and role != "guests"]
-    # FIXME: Prefer using the IN operator, which takes advantage of the indexes (especially imporant with the big table group_users)
-    # Needs some adaptations because any accepts an array whereas IN needs a Set
-    cur.execute("DELETE FROM group_users WHERE user_id = %s AND group_id = ANY(%s)",
-                (user_id, other_group_ids))
-    demoted = cur.rowcount
+    if other_group_ids:
+        cur.execute("DELETE FROM group_users WHERE user_id = %s AND group_id IN %s",
+                    (user_id, tuple(other_group_ids)))
+        demoted = cur.rowcount
+    else:
+        demoted = 0
     cur.execute(
         """INSERT INTO group_users (group_id, user_id) VALUES (%s, %s)
            ON CONFLICT DO NOTHING""",
@@ -366,13 +365,14 @@ def cmd_remove(cur, args):
                     "Use --force to remove them anyway.")
 
     role_group_ids = [gid for role, gid in groups.items() if role != "guests"]
-    # FIXME: Prefer using the IN operator, which takes advantage of the indexes (especially imporant with the big table group_users)
-    # Needs some adaptations because any accepts an array whereas IN needs a Set
-    cur.execute("DELETE FROM group_users WHERE user_id = %s AND group_id = ANY(%s)",
-                (user_id, role_group_ids))
-    removed = cur.rowcount
+    if role_group_ids:
+        cur.execute("DELETE FROM group_users WHERE user_id = %s AND group_id IN %s",
+                    (user_id, tuple(role_group_ids)))
+        removed = cur.rowcount
 
-    repair_parents(cur, res)
+        repair_parents(cur, res)
+    else:
+        removed = 0
 
     if removed:
         print(f"Direct access of {display_email} removed from {res['label']}.")
