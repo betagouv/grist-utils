@@ -4,12 +4,38 @@
 
 Set of tools to manage the rights for a document.
 
+## grist_access.py
+
+If you don't have access to the target resource you want to inspect or modify the access, this tools is meant for you.
+It allows you:
+
+- to list the access of the resource (with the inheritance of the rights, taking into account the max inherited role)
+- to add or change the role of a specific user
+- to remove a user from a resource
+
+### Requirements
+
+- Access to a Grist home database
+- Python ≥ 3.11
+- psycopg2 library for Python
+
+### Usage
+
+Run this command to get the usage:
+
+```
+$ ./grist_access.py --help
+```
+
+
+
 ## retrieve-rights.sh
 
 ### Requirements
 
 - curl
 - a Grist instance
+- Access to the resource (uses the Rest API)
 
 ### Usage
 
@@ -28,6 +54,7 @@ $ DOC_ID=<your-doc-id> bash ./retrieve-rights.sh
 ### Requirements
 
 - Grist instance **with SCIM enabled**.
+- Access to the resource (uses the Rest API)
 - jq
 - curl
 
