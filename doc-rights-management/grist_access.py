@@ -47,6 +47,7 @@ import argparse
 import logging
 import sys
 import time
+from typing import Literal
 
 import psycopg2
 import psycopg2.extras
@@ -62,16 +63,23 @@ except Exception():
 
 logger = logging.getLogger("grist_access")
 
+OWNERS = "owners"
+EDITORS = "editors"
+VIEWERS = "viewers"
+MEMBERS = "members"
+GUESTS = "guests"
+
 # Roles that can be assigned directly. 'guests' is excluded: it is managed
 # automatically (repaired by this script just like by Grist itself).
-ASSIGNABLE_ROLES = ("owners", "editors", "viewers", "members")
-ROLE_GROUP_NAMES = ("owners", "editors", "viewers", "members", "guests")
+ASSIGNABLE_ROLES = (OWNERS, EDITORS, VIEWERS, MEMBERS)
+ROLE_GROUP_NAMES = (OWNERS, EDITORS, VIEWERS, MEMBERS, GUESTS)
 
 # Special users (see app/common/UserAPI.ts): never added to guests groups
 # (filterEveryone logic in UsersManager.ts).
 EVERYONE_EMAIL = "everyone@getgrist.com"
 ANONYMOUS_USER_EMAIL = "anon@getgrist.com"
 
+MAX_INHERITED_ROLE = Literal["owners", "editors", "viewers"] | None
 
 class Fatal(Exception):
     pass
@@ -137,37 +145,44 @@ def find_user(cur, email):
                     "(or have been invited) to exist in the database.")
     return row[0], row[1]
 
-
-def resolve_resource(cur, args):
-    """Returns a dict describing the targeted resource:
-    {kind: 'org'|'workspace'|'doc', id, label, org_id, workspace_id}."""
+def extract_resource_identifier(args: argparse.Namespace):
     selectors = [s for s in (args.org, args.workspace, args.doc) if s is not None]
     if len(selectors) != 1:
         raise Fatal("Specify exactly one resource: --org, --workspace or --doc.")
-
     if args.org is not None:
-        if args.org.isdigit():
-            cur.execute("SELECT id, name FROM orgs WHERE id = %s", (int(args.org),))
-        else:
-            cur.execute("SELECT id, name FROM orgs WHERE domain = %s", (args.org,))
-        row = cur.fetchone()
-        if not row:
-            raise Fatal(f"Organisation not found: {args.org!r} (id or domain).")
-        return {"kind": "org", "id": row[0], "label": f"org #{row[0]} ({row[1]})",
-                "org_id": row[0], "workspace_id": None}
-
+        return { 'org': int(args.org) if args.org.isdigit else args.org }
     if args.workspace is not None:
         if not args.workspace.isdigit():
             raise Fatal("--workspace expects a numeric id.")
+        return { 'workspace': int(args.workspace) }
+    return { 'doc': args.doc }
+
+def resolve_resource(cur, res_identifier):
+    """Returns a dict describing the targeted resource:
+    {kind: 'org'|'workspace'|'doc', id, label, org_id, workspace_id}."""
+    org = res_identifier.get('org')
+    workspace = res_identifier.get('workspace')
+    doc = res_identifier.get('doc')
+
+    if org is not None:
+        if isinstance(org, int):
+            cur.execute("SELECT id, name FROM orgs WHERE id = %s", (int(org),))
+        else:
+            cur.execute("SELECT id, name FROM orgs WHERE domain = %s", (org,))
+        row = cur.fetchone()
+        if not row:
+            raise Fatal(f"Organisation not found: {org!r} (id or domain).")
+        return {"kind": "org", "id": row[0], "label": f"org #{row[0]} (\"{row[1]}\")",
+                "org_id": row[0], "workspace_id": None}
+
+    if workspace is not None:
         cur.execute(
             """SELECT w.id, w.name, w.org_id, o.name FROM workspaces w
                JOIN orgs o ON o.id = w.org_id WHERE w.id = %s""",
-            (int(args.workspace),))
+            (int(workspace),))
         row = cur.fetchone()
-        if not row:
-            raise Fatal(f"Workspace not found: {args.workspace}.")
         return {"kind": "workspace", "id": row[0],
-                "label": f"workspace #{row[0]} ({row[1]}) in org ({row[3]})",
+                "label": f"workspace #{row[0]} (\"{row[1]}\") in org (\"{row[3]}\")",
                 "org_id": row[2], "workspace_id": row[0]}
 
     # Document: full id or url_id.
@@ -175,16 +190,16 @@ def resolve_resource(cur, args):
         """SELECT d.id, d.name, d.workspace_id, w.org_id FROM docs d
            JOIN workspaces w ON w.id = d.workspace_id
            WHERE d.id = %s OR d.url_id = %s""",
-        (args.doc, args.doc))
+        (doc, doc))
     rows = cur.fetchall()
     if not rows:
-        raise Fatal(f"Document not found: {args.doc!r} (id or url_id).")
+        raise Fatal(f"Document not found: {doc!r} (id or url_id).")
     if len(rows) > 1:
         ids = ", ".join(r[0] for r in rows)
-        raise Fatal(f"Several documents match {args.doc!r}: {ids}. "
+        raise Fatal(f"Several documents match {doc!r}: {ids}. "
                     "Use the full id.")
     row = rows[0]
-    return {"kind": "doc", "id": row[0], "label": f"doc {row[0]} ({row[1]})",
+    return {"kind": "doc", "id": row[0], "label": f"doc {row[0]} (\"{row[1]}\")",
             "org_id": row[3], "workspace_id": row[2]}
 
 
@@ -197,7 +212,7 @@ def get_role_groups(cur, res):
             WHERE a.{column} = %s AND g.type = 'role'""",
         (res["id"],))
     groups = dict(cur.fetchall())
-    missing = [r for r in ("owners", "editors", "viewers") if r not in groups]
+    missing = [r for r in (OWNERS, EDITORS, VIEWERS) if r not in groups]
     if missing:
         raise Fatal(f"Missing role groups for {res['label']}: {missing}. "
                     "The resource looks corrupted or nonexistent.")
@@ -238,6 +253,11 @@ def _set_group_users(cur, group_id, target_user_ids):
             cur, "INSERT INTO group_users (group_id, user_id) VALUES %s",
             [(group_id, u) for u in to_add])
     return to_add, to_remove
+
+def _get_effective_role(role):
+    if role == MEMBERS or role == GUESTS:
+        return VIEWERS
+    return role
 
 
 def repair_workspace_guests(cur, workspace_id):
@@ -293,15 +313,12 @@ def repair_parents(cur, res):
         repair_org_guests(cur, res["org_id"])
     # Nothing to repair above an org.
 
-
-# ---------------------------------------------------------------------------
-# Commands
-# ---------------------------------------------------------------------------
-
-def cmd_list(cur, args):
-    res = resolve_resource(cur, args)
+def get_roles(cur, res, max_inherited_role: MAX_INHERITED_ROLE = OWNERS):
     groups = get_role_groups(cur, res)
-    print(f"Access for {res['label']}:")
+    members = {}
+    if max_inherited_role is None:
+        return members
+
     for role in ROLE_GROUP_NAMES:
         if role not in groups:
             continue
@@ -311,29 +328,80 @@ def cmd_list(cur, args):
                JOIN logins l ON l.user_id = u.id
                WHERE gu.group_id = %s ORDER BY l.email""",
             (groups[role],))
-        members = cur.fetchall()
-        # FIXME: Not true. The inheritance mecanism is much more complex.
-        # 1. Inheritance can have up to 3 levels (org => ws => docs => teams)
-        # 2. Inheritance can be limited using permissions (bitwise operations)
+        members[role] = cur.fetchall()
+
+    # Apply the mex inherited role
+    for role in ROLE_GROUP_NAMES:
+        if (role == max_inherited_role):
+            break
+        members[max_inherited_role] += members[role]
+        del members[role]
+
+    return members
+
+def get_max_inherited_role(cur, res, max: MAX_INHERITED_ROLE) -> MAX_INHERITED_ROLE:
+    groups = get_role_groups(cur, res)
+    max_inherited_role = None
+    if max is None:
+        return None
+
+    for role in ROLE_GROUP_NAMES:
+        if role not in groups:
+            continue
         cur.execute(
-            """SELECT sg.name, sg.type FROM group_groups gg
-               JOIN groups sg ON sg.id = gg.subgroup_id
-               WHERE gg.group_id = %s""",
+            """SELECT sg.name 
+                FROM group_groups gg
+                JOIN groups sg ON gg.subgroup_id = sg.id
+                WHERE gg.group_id = %s AND sg.type = 'role'
+            """,
             (groups[role],))
-        subgroups = cur.fetchall()
+        row = cur.fetchone()
+        if row:
+            max_inherited_role = role
+            break
+
+    # ROLE_GROUP_NAMES are ordered from the most permissive to the most restrictive role
+    # if the found max_inherited_role has more permissions than the passed maximum role,
+    # enforce the passed maximum role.
+    if max_inherited_role and ROLE_GROUP_NAMES.index(max_inherited_role) < ROLE_GROUP_NAMES.index(max):
+        max_inherited_role = max
+
+    return _get_effective_role(max_inherited_role)
+
+def print_recursive_roles(cur, res, max_inherited_role: MAX_INHERITED_ROLE = "owners"):
+    # Let’s fetch the roles before printing anything, so we can have the queries logs before
+    roles = get_roles(cur, res, max_inherited_role)
+
+    print(f"Access from {res['label']} (max inherited role = {max_inherited_role}):")
+    for role, members in roles.items():
         print(f"  {role}:")
         for email, name in members:
             print(f"    - {email} ({name})")
-        for name, gtype in subgroups:
-            kind = "inherited group" if gtype == "role" else "team"
-            print(f"    - [{kind}] {name}")
-        if not members and not subgroups:
-            print("    (empty)")
+
+    print('')
+    print('--------')
+    print('')
+
+    if res['kind'] == 'doc':
+        parent = resolve_resource(cur, { "workspace": res['workspace_id'] })
+        print_recursive_roles(cur, parent, get_max_inherited_role(cur, res, max_inherited_role))
+    if res['kind'] == 'workspace':
+        parent = resolve_resource(cur, { "org": res['org_id'] })
+        print_recursive_roles(cur, parent, get_max_inherited_role(cur, res, max_inherited_role))
+
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+def cmd_list(cur, args):
+    res = resolve_resource(cur, extract_resource_identifier(args))
+    print_recursive_roles(cur, res)
 
 
 def cmd_set(cur, args):
-    res = resolve_resource(cur, args)
-    if args.role == "members" and res["kind"] != "org":
+    res = resolve_resource(cur, extract_resource_identifier(args))
+    if args.role == MEMBERS and res["kind"] != "org":
         raise Fatal("The 'members' role only exists for organisations.")
     user_id, display_email = find_user(cur, args.email)
     groups = get_role_groups(cur, res)
@@ -341,7 +409,7 @@ def cmd_set(cur, args):
     # Remove the user from the resource's other role groups (a single direct
     # role per resource), then add them to the target group.
     other_group_ids = [gid for role, gid in groups.items()
-                       if role != args.role and role != "guests"]
+                       if role != args.role and role != GUESTS]
     if other_group_ids:
         cur.execute("DELETE FROM group_users WHERE user_id = %s AND group_id IN %s",
                     (user_id, tuple(other_group_ids)))
@@ -366,7 +434,7 @@ def cmd_set(cur, args):
 
 
 def cmd_remove(cur, args):
-    res = resolve_resource(cur, args)
+    res = resolve_resource(cur, extract_resource_identifier(args))
     user_id, display_email = find_user(cur, args.email)
     groups = get_role_groups(cur, res)
 
@@ -374,16 +442,16 @@ def cmd_remove(cur, args):
     cur.execute(
         """SELECT count(*) FROM group_users
            WHERE group_id = %s AND user_id != %s""",
-        (groups["owners"], user_id))
+        (groups[OWNERS], user_id))
     remaining_owners = cur.fetchone()[0]
     cur.execute("SELECT 1 FROM group_users WHERE group_id = %s AND user_id = %s",
-                (groups["owners"], user_id))
+                (groups[OWNERS], user_id))
     is_owner = cur.fetchone() is not None
     if is_owner and remaining_owners == 0 and not args.force:
         raise Fatal(f"{display_email} is the last owner of {res['label']}. "
                     "Use --force to remove them anyway.")
 
-    role_group_ids = [gid for role, gid in groups.items() if role != "guests"]
+    role_group_ids = [gid for role, gid in groups.items() if role != GUESTS]
     if role_group_ids:
         cur.execute("DELETE FROM group_users WHERE user_id = %s AND group_id IN %s",
                     (user_id, tuple(role_group_ids)))
@@ -402,7 +470,7 @@ def cmd_remove(cur, args):
 
 
 def cmd_repair_guests(cur, args):
-    res = resolve_resource(cur, args)
+    res = resolve_resource(cur, extract_resource_identifier(args))
     if res["kind"] == "org":
         added, removed = repair_org_guests(cur, res["id"])
     elif res["kind"] == "workspace":
