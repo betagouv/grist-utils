@@ -447,9 +447,12 @@ def cmd_remove(cur, args):
     cur.execute("SELECT 1 FROM group_users WHERE group_id = %s AND user_id = %s",
                 (groups[OWNERS], user_id))
     is_owner = cur.fetchone() is not None
+    # FIXME: could be worth to check properly the inheritance to avoid false panick...
     if is_owner and remaining_owners == 0 and not args.force:
         raise Fatal(f"{display_email} is the last owner of {res['label']}. "
-                    "Use --force to remove them anyway.")
+                    "Use --force to remove them anyway.\n"
+                    "PS: if there is an owner inherited from the parent resource, it may be safe to force the removal. Use the `list` command on the resource to check that."
+                    )
 
     role_group_ids = [gid for role, gid in groups.items() if role != GUESTS]
     if role_group_ids:
