@@ -47,7 +47,7 @@ import argparse
 import logging
 import sys
 import time
-from typing import Literal
+from typing import Literal, Optional
 
 import psycopg2
 import psycopg2.extras
@@ -56,7 +56,7 @@ try:
     from pygments import highlight
     from pygments.lexers import SqlLexer
     from pygments.formatters import Terminal256Formatter
-except Exception():
+except Exception:
     highlight = None
     pass
 
@@ -79,7 +79,7 @@ ROLE_GROUP_NAMES = (OWNERS, EDITORS, VIEWERS, MEMBERS, GUESTS)
 EVERYONE_EMAIL = "everyone@getgrist.com"
 ANONYMOUS_USER_EMAIL = "anon@getgrist.com"
 
-MAX_INHERITED_ROLE = Literal["owners", "editors", "viewers"] | None
+MAX_INHERITED_ROLE = Optional[Literal["owners", "editors", "viewers"]]
 
 class Fatal(Exception):
     pass
@@ -150,7 +150,7 @@ def extract_resource_identifier(args: argparse.Namespace):
     if len(selectors) != 1:
         raise Fatal("Specify exactly one resource: --org, --workspace or --doc.")
     if args.org is not None:
-        return { 'org': int(args.org) if args.org.isdigit else args.org }
+        return { 'org': int(args.org) if args.org.isdigit() else args.org }
     if args.workspace is not None:
         if not args.workspace.isdigit():
             raise Fatal("--workspace expects a numeric id.")
