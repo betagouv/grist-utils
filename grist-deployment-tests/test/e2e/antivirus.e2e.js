@@ -14,7 +14,6 @@ import { withTmpTab, withTmpWorkspace } from "./utils.js";
 // (like publishing a form)
 describe.skip("Antivirus 2", () => {
   it("should block malicious attachments in form", async () => {
-    // Given
     await HomePage.open();
     await HomePage.goToLogin();
     await LoginPage.login();
