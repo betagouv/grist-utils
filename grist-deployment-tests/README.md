@@ -13,9 +13,6 @@ You may run the tests by simply triggering a Github workflow through the "Action
 Please be sure a secret environment named "deployment tests" ([as defined in this workflow file](https://github.com/betagouv/grist-utils/blob/bcb819601f2ec4d3b8decaed7c462b9f50f1bc8a/.github/workflows/grist-deployment-tests.yml#L18C18-L18C28)) is configured and that the secrets used in this file are defined. You may take a look [at the Github documentation on how to define them and how to use them](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) to know more.
 
 ## Running the tests locally
-## Running the tests locally
-
-### Installation
 
 ### Installation
 
