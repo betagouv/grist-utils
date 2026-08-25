@@ -102,7 +102,7 @@ class SqlLoggingConnection(psycopg2.extras.MinTimeLoggingConnection):
     def format_msg(self, msg):
         return msg
 
-class SynHighlighSqlLoggingConnection(SqlLoggingConnection):
+class SynHighlightSqlLoggingConnection(SqlLoggingConnection):
     style = "default"
     def format_msg(self, msg):
         if not highlight:
@@ -538,7 +538,7 @@ def main():
     logger.debug("Connecting to the database (dsn=%s)", args.dsn or "<PG* environment variables>")
     connection_factory = SqlLoggingConnection
     if highlight and args.verbose and args.syntax_highlighting:
-        connection_factory = SynHighlighSqlLoggingConnection
+        connection_factory = SynHighlightSqlLoggingConnection
         connection_factory.style = args.syntax_highlighting
     conn = psycopg2.connect(args.dsn, connection_factory=connection_factory)
     conn.initialize(logger)
