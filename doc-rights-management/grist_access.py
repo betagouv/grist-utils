@@ -106,7 +106,7 @@ class SynHighlighSqlLoggingConnection(SqlLoggingConnection):
     style = "default"
     def format_msg(self, msg):
         if not highlight:
-            super().format_msg(msg)
+            return super().format_msg(msg)
         return highlight(msg, lexer=SqlLexer(), formatter=Terminal256Formatter(style=self.style))
 
 
@@ -181,6 +181,8 @@ def resolve_resource(cur, res_identifier):
                JOIN orgs o ON o.id = w.org_id WHERE w.id = %s""",
             (int(workspace),))
         row = cur.fetchone()
+        if not row:
+            raise Fatal(f"Workspace not found: {workspace!r} (numeric id).")
         return {"kind": "workspace", "id": row[0],
                 "label": f"workspace #{row[0]} (\"{row[1]}\") in org (\"{row[3]}\")",
                 "org_id": row[2], "workspace_id": row[0]}
@@ -330,7 +332,7 @@ def get_roles(cur, res, max_inherited_role: MAX_INHERITED_ROLE = OWNERS):
             (groups[role],))
         members[role] = cur.fetchall()
 
-    # Apply the mex inherited role
+    # Apply the max inherited role
     for role in ROLE_GROUP_NAMES:
         if (role == max_inherited_role):
             break
@@ -447,7 +449,7 @@ def cmd_remove(cur, args):
     cur.execute("SELECT 1 FROM group_users WHERE group_id = %s AND user_id = %s",
                 (groups[OWNERS], user_id))
     is_owner = cur.fetchone() is not None
-    # FIXME: could be worth to check properly the inheritance to avoid false panick...
+    # FIXME: could be worth to check properly the inheritance to avoid false panic...
     if is_owner and remaining_owners == 0 and not args.force:
         raise Fatal(f"{display_email} is the last owner of {res['label']}. "
                     "Use --force to remove them anyway.\n"

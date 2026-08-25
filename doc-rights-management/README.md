@@ -6,7 +6,7 @@ Set of tools to manage the rights for a document.
 
 ## grist_access.py
 
-If you don't have access to the target resource you want to inspect or modify the access, this tools is meant for you.
+If you don't have access to the target resource you want to inspect or modify the access, this tool is meant for you.
 It allows you:
 
 - to list the access of the resource (with the inheritance of the rights, taking into account the max inherited role)
