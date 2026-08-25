@@ -535,7 +535,8 @@ def main():
     args = parser.parse_args()
     setup_logging(args.verbose, args.log_file)
 
-    logger.debug("Connecting to the database (dsn=%s)", args.dsn or "<PG* environment variables>")
+    logger.debug("Connecting to the database (dsn=%s)",
+                 "<provided>" if args.dsn else "<PG* environment variables>")
     connection_factory = SqlLoggingConnection
     if highlight and args.verbose and args.syntax_highlighting:
         connection_factory = SynHighlightSqlLoggingConnection
