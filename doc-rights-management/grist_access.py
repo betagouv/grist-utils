@@ -22,7 +22,7 @@ Data model (see documentation/database.md):
 
 Examples:
   # List the access rights of a document (full id or url_id)
-  ./grist_access.py --dsn "$DSN" list --doc 4gPu3Fj1zSKQ
+  ./grist_access.py --dsn "$DSN" list --doc YourD0cIdHere
 
   # Add someone to the owners of a document
   ./grist_access.py --dsn "$DSN" set --doc 4gPu3Fj1zSKQ --email alice@example.com --role owners
