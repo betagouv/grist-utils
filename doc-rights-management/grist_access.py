@@ -25,7 +25,7 @@ Examples:
   ./grist_access.py --dsn "$DSN" list --doc YourD0cIdHere
 
   # Add someone to the owners of a document
-  ./grist_access.py --dsn "$DSN" set --doc 4gPu3Fj1zSKQ --email alice@example.com --role owners
+  ./grist_access.py --dsn "$DSN" set --doc YourD0cIdHere --email alice@example.com --role owners
 
   # Demote someone to plain viewer on a workspace
   ./grist_access.py --dsn "$DSN" set --workspace 12 --email alice@example.com --role viewers
@@ -34,7 +34,7 @@ Examples:
   ./grist_access.py --dsn "$DSN" remove --org my-team --email bob@example.com
 
   # Simulate without writing anything
-  ./grist_access.py --dsn "$DSN" --dry-run set --doc 4gPu3Fj1zSKQ --email alice@example.com --role owners
+  ./grist_access.py --dsn "$DSN" --dry-run set --doc YourD0cIdHere --email alice@example.com --role owners
 
   # Log every executed SQL query (to stderr and/or to a file)
   ./grist_access.py --dsn "$DSN" -v --log-file grist_access.log list --org testorg
