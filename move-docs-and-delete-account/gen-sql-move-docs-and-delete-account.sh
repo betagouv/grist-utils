@@ -55,7 +55,7 @@ DROP TABLE IF EXISTS source_info;
 CREATE TEMPORARY TABLE source_info as select u.id as user_id, w.id as workspace_id, o.id as org_id
 from logins l join users u on u.id=l.user_id
   join orgs o on o.owner_id=u.id
-  join workspaces w on w.org_id=o.id
+  left join workspaces w on w.org_id=o.id
 where l.email='${src}' and o.name='Personal';
 
 select * from source_info;
@@ -73,7 +73,7 @@ select * from target_info;
 
 begin;
 
-UPDATE workspaces set name=(name || '${moved_suffix}'), org_id=(SELECT t.org_id from target_info t) where id in (SELECT s.workspace_id from source_info s) returning *; -- Change workspace orgs and rename their name won't conflict with the target organization ones
+UPDATE workspaces set name=(name || '${moved_suffix}'), org_id=(SELECT t.org_id from target_info t) where id in (SELECT s.workspace_id from source_info s where s.workspace_id is not NULL) returning *; -- Change workspace orgs and rename their name won't conflict with the target organization ones
 
 WITH old_groups AS (select * from groups g join acl_rules acl on g.id = acl.group_id where acl.org_id=(select distinct(org_id) from source_info)),
 new_groups AS (select * from groups g join acl_rules acl on g.id = acl.group_id where acl.org_id=(select distinct(org_id) from target_info)),
@@ -93,7 +93,7 @@ delete from group_users where user_id=(select distinct(user_id) from source_info
 
 update docs set created_by=(select distinct(user_id) from target_info) where created_by=(select distinct(user_id) from source_info) returning *; -- Update the docs so they are marked as being created by the new account instead. FIXME: required? A good idea regarding the history?
 
-UPDATE aliases set org_id=(select distinct(org_id) from target_info) where doc_id in (select d.id from docs d join source_info s on d.workspace_id=s.workspace_id) returning *; -- Update the org in the aliases.
+UPDATE aliases set org_id=(select distinct(org_id) from target_info) where doc_id in (select d.id from docs d join source_info s on d.workspace_id=s.workspace_id where s.workspace_id is not NULL) returning *; -- Update the org in the aliases.
 
 -- Delete the old account
 delete from acl_rules where acl_rules.org_id=(select id from orgs where orgs.owner_id=(select distinct(user_id) from source_info));
