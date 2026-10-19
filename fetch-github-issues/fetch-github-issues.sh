@@ -4,6 +4,7 @@ set -eEuo pipefail
 
 PROJECT_ID=1
 OWNER_NAME=gristlabs
+MAIN_REPO_NAME=grist-core
 
 output=$(mktemp --suffix=".issues-gh.json")
 
@@ -27,7 +28,9 @@ get_needs_feedback_column_without_priority() {
 }
 
 fetch_prs_with_label() {
-  gh pr list --label "$1" --limit 100 --json number,url --format json | jq -c
+  local label="$1"
+  $gh pr -R "$OWNER_NAME/$MAIN_REPO_NAME" list --label "$label" --limit 100 --json title,url | \
+    jq -c '.[] | {"title": .title, "content": {"url": .url}}' # Adapt to the format returned by the "gh project item-list" command
 }
 
 format_project_item() {
@@ -52,6 +55,7 @@ format_project_item() {
 }
 
 show_done=''
+show_deps=''
 show_needs_feedback=''
 show_in_progress=''
 show_community=''
@@ -61,6 +65,10 @@ while [[ $# -gt 0 ]]; do
   case $key in
     -D|--done)
       show_done='true'
+      shift
+      ;;
+    --dependencies)
+      show_deps='true'
       shift
       ;;
     -N|--needs-feedback)
@@ -80,8 +88,9 @@ while [[ $# -gt 0 ]]; do
       shift;;
     -h|--help)
       echo "This script fetches the issues from a Github project and formats them in markdown."
-      echo "Usage: $0 [-D|--done] [-N|--needs-feedback] [-I|--in-progress] [-A|--archive-done] [-c|--community] [-h|--help]"
+      echo "Usage: $0 [-D|--done] [--dependencies] [-N|--needs-feedback] [-I|--in-progress] [-A|--archive-done] [-c|--community] [-h|--help]"
       echo "  -D,--done: Show items in the Done column"
+      echo "  --dependencies: List dependencies PRs"
       echo "  -N,--needs-feedback: Show items in the Needs feedback column"
       echo "  -I,--in-progress: Show items in the In progress column"
       echo "  -A,--archive-done: Archive items in the Done column (default: false)"
@@ -103,8 +112,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [ -z "$show_done" ] && [ -z "$show_needs_feedback" ] && [ -z "$show_in_progress" ]; then
+if [ -z "$show_done" ] && [ -z "$show_deps" ] && [ -z "$show_needs_feedback" ] && [ -z "$show_in_progress" ]; then
   show_done='true'
+  show_deps='true'
   show_needs_feedback='true'
   show_in_progress='true'
   show_community='true'
@@ -145,6 +155,7 @@ if [ "$show_needs_feedback" = 'true' ]; then
   needs_feedback_p0=$(get_needs_feedback_column_by_priority "P0")
   needs_feedback_p1=$(get_needs_feedback_column_by_priority "P1")
   needs_feedback_p2=$(get_needs_feedback_column_by_priority "P2" && echo && get_needs_feedback_column_without_priority)
+  dependencies=$(fetch_prs_with_label "dependencies")
   if [ -n "$needs_feedback_p0" ]; then
     echo "**🔝 HIGH PRIORITY: Needs Review or feedback**"
     new_line
@@ -155,6 +166,15 @@ if [ "$show_needs_feedback" = 'true' ]; then
     echo "Other news in the thread below 🧵⤵️"
     new_line
     echo "---"
+  fi
+
+  if [ -n "$dependencies" ]; then
+    echo "**📦 Dependencies**"
+    new_line
+    for item in $dependencies; do
+      format_project_item "$item"
+    done
+    new_line
   fi
 
   if [ -n "$needs_feedback_p1" ]; then
