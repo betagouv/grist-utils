@@ -29,8 +29,8 @@ get_needs_feedback_column_without_priority() {
 
 fetch_prs_with_label() {
   local label="$1"
-  $gh pr -R "$OWNER_NAME/$MAIN_REPO_NAME" list --label "$label" --limit 100 --json title,url | \
-    jq -c '.[] | {"title": .title, "content": {"url": .url}}' # Adapt to the format returned by the "gh project item-list" command
+  $gh pr -R "$OWNER_NAME/$MAIN_REPO_NAME" list --label "$label" --limit 100 --json title,url,createdAt | \
+    jq -c 'sort_by(.createdAt) | .[] | {"title": .title, "content": {"url": .url}}' # Adapt to the format returned by the "gh project item-list" command. Also sort by creation date
 }
 
 format_project_item() {
@@ -171,6 +171,7 @@ if [ "$show_needs_feedback" = 'true' ]; then
   if [ -n "$dependencies" ]; then
     echo "**📦 Dependencies**"
     new_line
+    echo "Ordered by creation date (the oldest at the top):"
     for item in $dependencies; do
       format_project_item "$item"
     done
