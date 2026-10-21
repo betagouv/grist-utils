@@ -1,21 +1,26 @@
-import { $ } from "@wdio/globals";
-import Page from "./page.js";
+import { browser } from "@wdio/globals";
 
-class IntraFormPage extends Page {
-  get widgetIframe() {
-    return $(".test-custom-widget-ready");
+class IntraFormPage {
+  constructor() {
+    this.frame = null;
+  }
+
+  // Resolves once the custom widget's iframe is attached, then binds all
+  // subsequent queries to that frame's browsing context.
+  async attach(page) {
+    this.frame = await page.frame({ selector: ".test-custom-widget-ready" });
   }
 
   get successMessage() {
-    return $(".form-success");
+    return this.frame.$(".form-success");
   }
 
   get submitButton() {
-    return $("button*=Valider");
+    return this.frame.$("button*=Valider");
   }
 
   async selectFileForField(fieldName, fixture) {
-    const fileUpload = $(`input#file_${fieldName}`);
+    const fileUpload = this.frame.$(`input#file_${fieldName}`);
     // The element needs to be shown in order to interact with
     await fileUpload.execute(
       // assign style to elem in the browser

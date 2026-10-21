@@ -15,7 +15,7 @@ describe("Upload of files through widgets", () => {
   // And the technical explanation:
   // https://github.com/betagouv/grist-grav/pull/11
   it("should pass", async () => {
-    await HomePage.open();
+    const page = await HomePage.open();
     await HomePage.goToLogin();
     await LoginPage.login();
     const fixturePath = path.resolve(
@@ -28,8 +28,7 @@ describe("Upload of files through widgets", () => {
       await HomePage.importDocument(
         path.join(fixturePath, "./grist/IntraForm.grist"),
       );
-      await expect(IntraFormPage.widgetIframe).toBeDisplayed();
-      await browser.switchFrame(IntraFormPage.widgetIframe);
+      await IntraFormPage.attach(page);
 
       await IntraFormPage.selectFileForField("PJ", regularPdfPath);
       await IntraFormPage.submit();

@@ -45,10 +45,11 @@ class HomePage extends Page {
   }
 
   async open() {
-    await super.open("/");
+    const page = await super.open("/");
     if (await this.maintenancePopin.isDisplayed()) {
       await this.acknowledgeMaintenance();
     }
+    return page;
   }
 
   async goToLogin() {
