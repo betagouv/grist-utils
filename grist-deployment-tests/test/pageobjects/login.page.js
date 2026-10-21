@@ -16,8 +16,12 @@ class LoginPage extends Page {
     return $("#password-input");
   }
 
-  get btnSubmit() {
-    return $('button[type="submit"]');
+  get btnSubmitEmail() {
+    return $("#email-submit-button");
+  }
+
+  get btnSubmitPassword() {
+    return $("button*=S’identifier");
   }
 
   get dinumOrgTile() {
@@ -33,9 +37,9 @@ class LoginPage extends Page {
     password = process.env.USER_PASSWORD,
   ) {
     await this.inputEmail.setValue(email);
-    await this.btnSubmit.click();
+    await this.btnSubmitEmail.click();
     await this.inputPassword.setValue(password);
-    await this.btnSubmit.click();
+    await this.btnSubmitPassword.click();
     await this.dinumOrgTile.click();
   }
 
