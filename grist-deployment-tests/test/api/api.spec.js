@@ -153,6 +153,58 @@ describe("API", function () {
     return res.data;
   }
 
+  // Connects to the doc worker through a websocket (the same way the Grist client does)
+  // and asks to open the document. Resolves with the messages received from the server.
+  async function openDocThroughWebsocket(docId, timeoutMs = 10_000) {
+    const { data: org } = await axios.get(url(`/api/orgs/${orgId}`), {
+      headers: headers(),
+    });
+    const workerInfo = await getWorkerInfoForDoc(docId);
+    const wsUrl = new URL(
+      `o/${org.domain}`,
+      workerInfo.docWorkerUrl.replace(/^http/, "ws"),
+    );
+    wsUrl.searchParams.set("clientId", "0");
+    wsUrl.searchParams.set("counter", "0");
+    wsUrl.searchParams.set("newClient", "1");
+    wsUrl.searchParams.set(
+      "browserSettings",
+      JSON.stringify({ timezone: "UTC" }),
+    );
+
+    return new Promise((resolve) => {
+      const result = { url: wsUrl.href, clientConnect: null, openDoc: null };
+      // The "headers" option is a Node.js extension to the WebSocket standard.
+      const ws = new WebSocket(wsUrl.href, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      const done = (error) => {
+        clearTimeout(timer);
+        ws.onclose = null;
+        ws.close();
+        resolve({ ...result, error });
+      };
+      const timer = setTimeout(
+        () => done(`Timed out after ${timeoutMs}ms`),
+        timeoutMs,
+      );
+      ws.onerror = () => done("Websocket error");
+      ws.onclose = (ev) => done(`Websocket closed (code ${ev.code})`);
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === "clientConnect") {
+          result.clientConnect = msg;
+          ws.send(
+            JSON.stringify({ reqId: 1, method: "openDoc", args: [docId] }),
+          );
+        } else if (msg.reqId === 1) {
+          result.openDoc = msg;
+          done(null);
+        }
+      };
+    });
+  }
+
   // This is the most basic test
   it("should successfully create a document, put data and read document content", async () => {
     const docId = await createDoc("doc-creation-test");
@@ -160,6 +212,24 @@ describe("API", function () {
     const records = await readTableRecords(docId, "Table1");
     assert.lengthOf(records, 1);
     assert.equal(records[0].fields.A, "value1");
+  });
+
+  // Grist clients communicate with the doc workers through a websocket.
+  // A misconfigured reverse proxy (e.g. not forwarding the "Upgrade" and "Connection" headers)
+  // prevents the documents from being opened.
+  it("should open a document through the websocket", async () => {
+    const docId = await createDoc("doc-websocket-test");
+    const {
+      url: wsUrl,
+      clientConnect,
+      openDoc,
+      error,
+    } = await openDocThroughWebsocket(docId);
+    console.log(`Websocket connection to ${wsUrl}`);
+    assert.isNull(error);
+    assert.equal(clientConnect?.type, "clientConnect");
+    assert.isUndefined(openDoc.error);
+    assert.property(openDoc.data.doc, "_grist_DocInfo");
   });
 
   it("should evaluate formulas in a sandbox", async () => {
