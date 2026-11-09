@@ -44,6 +44,22 @@ class HomePage extends Page {
     return $("#file_dialog_input");
   }
 
+  get templatesLink() {
+    return $(".test-dm-templates-page");
+  }
+
+  get infoServiceLink() {
+    return $("a*=Informations sur le service");
+  }
+
+  get declAccessLink() {
+    return $("a*=Accessibilité : Non conforme");
+  }
+
+  /**
+   * Methods
+   */
+
   async open() {
     const page = await super.open("/");
     if (await this.maintenancePopin.isDisplayed()) {
