@@ -60,9 +60,9 @@ class HomePage extends Page {
    * Methods
    */
 
-  async open() {
+  async open({ acknowledgeMaintenance = true } = {}) {
     const page = await super.open("/");
-    if (await this.maintenancePopin.isDisplayed()) {
+    if (acknowledgeMaintenance && (await this.maintenancePopin.isDisplayed())) {
       await this.acknowledgeMaintenance();
     }
     return page;
