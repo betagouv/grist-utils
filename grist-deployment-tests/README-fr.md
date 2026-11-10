@@ -30,9 +30,9 @@ $ GRIST_DOMAIN='https://my-grist.tld' USER_API_KEY='some-user-api-key' ORG_ID='1
 ```
 
 Les variables d'environnement ci-dessus sont :
- - `GRIST_DOMAIN` est le domaine de votre instance Grist (obligatoire) ;
- - `USER_API_KEY` est la clé API de l'utilisateur avec lequel vous souhaitez exécuter les tests (obligatoire) ;
- - `ORG_ID` est l'ID de l'organisation sur laquelle vous souhaitez exécuter les tests (optionnel, par défaut l'ID de l'espace personnel) ;
+- `GRIST_DOMAIN` est le domaine de votre instance Grist (obligatoire) ;
+- `USER_API_KEY` est la clé API de l'utilisateur avec lequel vous souhaitez exécuter les tests (obligatoire) ;
+- `ORG_ID` est l'ID de l'organisation sur laquelle vous souhaitez exécuter les tests (optionnel, par défaut l'ID de l'espace personnel) ;
 
 Les tests créent un espace de travail dédié (nommé `test__<date au format ISO>`), qui est automatiquement supprimé après l'exécution des tests.
 
