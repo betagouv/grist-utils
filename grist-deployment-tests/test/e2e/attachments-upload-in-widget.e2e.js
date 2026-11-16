@@ -33,7 +33,7 @@ describe("Upload of files through widgets", () => {
       await IntraFormPage.selectFileForField("PJ", regularPdfPath);
       await IntraFormPage.submit();
       await expect(IntraFormPage.successMessage).toBeDisplayed();
-      await IntraFormPage.waitForSuccessMessageCleared();
+      await IntraFormPage.goBackToForm();
       await IntraFormPage.selectFileForField("PJ", dummyFile1);
       await IntraFormPage.submit();
       await expect(IntraFormPage.successMessage).toBeDisplayed();
