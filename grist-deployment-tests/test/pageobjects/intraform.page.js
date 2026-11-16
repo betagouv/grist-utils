@@ -1,5 +1,3 @@
-import { browser } from "@wdio/globals";
-
 class IntraFormPage {
   constructor() {
     this.frame = null;
@@ -19,6 +17,10 @@ class IntraFormPage {
     return this.frame.$("button*=Valider");
   }
 
+  get retourAuFormulaireButton() {
+    return this.frame.$("button*=Retour au formulaire");
+  }
+
   async selectFileForField(fieldName, fixture) {
     const fileUpload = this.frame.$(`input#file_${fieldName}`);
     // The element needs to be shown in order to interact with
@@ -32,10 +34,8 @@ class IntraFormPage {
     return fileUpload.setValue(fixture);
   }
 
-  async waitForSuccessMessageCleared() {
-    await browser.waitUntil(async () => {
-      return !(await this.successMessage.isExisting());
-    });
+  async goBackToForm() {
+    await this.retourAuFormulaireButton.click();
   }
 
   async submit() {
