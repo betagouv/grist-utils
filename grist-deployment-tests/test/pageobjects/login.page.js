@@ -28,6 +28,10 @@ class LoginPage extends Page {
     return $("a*=DINUM");
   }
 
+  get ignore2FARecorvery() {
+    return $("button[formaction='/users/recovery-words-skip']");
+  }
+
   /**
    * a method to encapsule automation code to interact with the page
    * e.g. to login using username and password
@@ -40,6 +44,15 @@ class LoginPage extends Page {
     await this.btnSubmitEmail.click();
     await this.inputPassword.setValue(password);
     await this.btnSubmitPassword.click();
+
+    await Promise.race([
+      this.ignore2FARecorvery.waitForDisplayed(),
+      this.dinumOrgTile.waitForDisplayed(),
+    ]);
+    if (await this.ignore2FARecorvery.isExisting()) {
+      await this.ignore2FARecorvery.click();
+    }
+
     await this.dinumOrgTile.click();
   }
 
