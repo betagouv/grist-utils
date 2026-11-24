@@ -38,18 +38,28 @@ Where the above env variables are:
 - `USER_LOGIN` is the email of said user (required for e2e tests)
 - `USER_PASSWORD` is the password of said user (required for e2e tests)
 - `ORG_ID` is the ID of the organization on which you want to run the tests
-(optional, defaults to the Personal organization id, for API tests);
+  (optional, defaults to the Personal organization id, for API tests);
 
 The tests create a dedicated workspace (named `test__<iso formatted date>`), which is automatically deleted after the test run.
 
 #### Run a single test
 
-You may run a single test using the `-g` option of mocha. For example, the following 
+- For the api tests:
+
+You may run a single test using the `-g` option of mocha. For example, the following
 command run only the tests whose title contain `"snapshots"`:
 
 ```bash
 GRIST_DOMAIN='https://my-grist.tld' USER_API_KEY='some-user-api-key' [...] npm run test:api -- -g 'snapshots' 
 ```
+
+- For the e2e tests:
+
+Use the `--spec` option. For example, you may run the following command to run the "maintenance-popin" test suite:
+```bash
+GRIST_DOMAIN='https://my-grist.tld' USER_LOGIN="my-user@example.com" USER_PASSWORD="some password" npm run test:e2e -- --spec ./test/e2e/maintenance-popin.e2e.js
+```
+
 
 #### Troubleshooting
 
